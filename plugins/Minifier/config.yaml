@@ -1,0 +1,18 @@
+name: Minifier
+id:   Minifier
+key:  minifier
+version: 0.1
+author_link: http://alfasado.net/
+author_name: Alfasado Inc.
+l10n_class: Minifier::L10N
+description: <__trans phrase="Minifying JavaScript and CSS code.">
+callbacks:
+    MT::App::CMS::pre_run: $minifier::Minifier::Plugin::_pre_run
+    MT::App::CMS::template_param.cfg_system_general: $minifier::Minifier::Plugin::_cfg_system_general
+tags:
+    block:
+        CSSCompressor: $minifier::Minifier::Plugin::_hdlr_css_compressor
+        JSCompressor: $minifier::Minifier::Plugin::_hdlr_js_compressor
+    modifier:
+        abs_addslash: $minifier::Minifier::Plugin::_fltr_abs_addslash
+        cut_firstslash: $minifier::Minifier::Plugin::_fltr_cut_firstslash
