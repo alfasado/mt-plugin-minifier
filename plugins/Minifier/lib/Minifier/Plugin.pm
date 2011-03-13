@@ -69,7 +69,6 @@ MTML
 sub _hdlr_css_compressor {
     my ( $ctx, $args, $cond ) = @_;
     my $out = _hdlr_pass_tokens( @_ );
-    return $out if ( $args->{ config } && !MT->config->CSSCompressor );
     $out = MT->instance->translate_templatized( $out );
     require CSS::Minifier;
     $out = CSS::Minifier::minify( input => $out );
@@ -79,7 +78,6 @@ sub _hdlr_css_compressor {
 sub _hdlr_js_compressor {
     my ( $ctx, $args, $cond ) = @_;
     my $out = _hdlr_pass_tokens( @_ );
-    return $out if ( $args->{ config } && !MT->config->CSSCompressor );
     $out = MT->instance->translate_templatized( $out );
     require JavaScript::Minifier;
     $out = JavaScript::Minifier::minify( input => $out );
