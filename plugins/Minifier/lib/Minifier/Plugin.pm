@@ -43,7 +43,12 @@ sub _cfg_system_general {
     if (! -d $dir ) {
         return;
     }
-    my $pointer_field = $tmpl->getElementById( 'system_performance_logging' );
+    my $pointer_field;
+    if ( MT->version_id =~ /^5\.0/ ) {
+        $pointer_field = $tmpl->getElementById( 'system_performance_logging' );
+    } else {
+        $pointer_field = $tmpl->getElementById( 'system-performance-logging' );
+    }
     my $nodeset = $tmpl->createElement( 'app:setting', { id => 'use_minifier',
                                                          label => $plugin->translate( 'Minifier' ) ,
                                                          show_label => 1,
