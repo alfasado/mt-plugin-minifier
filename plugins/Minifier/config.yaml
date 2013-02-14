@@ -1,27 +1,48 @@
 name: Minifier
 id:   Minifier
 key:  minifier
-version: 0.2
+version: 0.4
 author_link: http://alfasado.net/
 author_name: Alfasado Inc.
 l10n_class: Minifier::L10N
 description: <__trans phrase="Minifying HTML, JavaScript and CSS code.">
+config_settings:
+    content2gzip:
+        default: 0
+    dynamic2gzip:
+        default: 0
+    content2gzipextensions:
+        default: html,js,css
 callbacks:
-    MT::App::CMS::pre_run: $minifier::Minifier::Plugin::_pre_run
-    MT::App::CMS::template_param.cfg_system_general: $minifier::Minifier::Plugin::_cfg_system_general
+    MT::App::CMS::pre_run: $minifier::Minifier::Minifier::_pre_run
+    MT::App::CMS::template_param.cfg_system_general: $minifier::Minifier::Minifier::_cfg_system_general
+    build_file: $minifier::Minifier::Minifier::_cb_gzip
+    post_delete_archive_file: $minifier::Minifier::Minifier::_cb_delete_archive
 tags:
     block:
-        CSSCompressor: $minifier::Minifier::Plugin::_hdlr_css_compressor
-        JSCompressor: $minifier::Minifier::Plugin::_hdlr_js_compressor
-        HTMLCompressor: >
-            sub {
-                my ( $ctx, $args, $cond ) = @_;
-                my $out = $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
-                $out = MT->instance->translate_templatized( $out );
-                require HTML::Packer;
-                my $packer = HTML::Packer->init();
-                $out = $packer->minify( \$out, $args );
-            };
+        CSSCompressor: $minifier::Minifier::Minifier::_hdlr_css_compressor
+        JSCompressor: $minifier::Minifier::Minifier::_hdlr_js_compressor
+        HTMLCompressor: $minifier::Minifier::Minifier::_hdlr_html_compressor
     modifier:
         abs_addslash: $minifier::Minifier::Plugin::_fltr_abs_addslash
         cut_firstslash: $minifier::Minifier::Plugin::_fltr_cut_firstslash
+
+#    RewriteEngine on
+#    RewriteCond %{HTTP:Accept-Encoding} gzip
+#    RewriteCond %{REQUEST_FILENAME} !\.gz$
+#    RewriteCond %{REQUEST_FILENAME}\.gz -s
+#    RewriteRule .+ %{REQUEST_URI}.gz
+#    <files *.html.gz>
+#    AddType "text/html;charset=utf-8" .gz
+#    </files>
+#    <files *.js.gz>
+#    AddType "text/javascript;charset=utf-8" .gz
+#    </files>
+#    <files *.css.gz>
+#    AddType "text/css" .gz
+#    </files>
+#    AddEncoding x-gzip .gz
+#
+#    or
+#
+#    AddOutputFilterByType DEFLATE text/html text/css application/x-javascript

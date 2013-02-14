@@ -1,4 +1,4 @@
-package Minifier::Plugin;
+package Minifier::Minifier;
 use strict;
 
 sub _pre_run {
@@ -11,7 +11,7 @@ sub _pre_run {
             $app->return_to_dashboard( permission => 1 );
         }
         if ( $app->param( 'use_minifier' ) ) {
-            my $static_file_path = chomp_dir( $app->static_file_path );
+            my $static_file_path = __chomp_dir( $app->static_file_path );
             require File::Spec;
             my $htaccess = File::Spec->catfile( $static_file_path, '.htaccess' );
             my $dir = File::Spec->catdir( $static_file_path, 'minify_2' );
@@ -23,8 +23,20 @@ sub _pre_run {
   RewriteRule ^([^?]+\.(css|js))$ <$MTStaticWebPath abs_addslash="1"$>minify_2/min/f=<$MTStaticWebPath abs_addslash="1" cut_firstslash="1"$>$1 [NC,L]
 </IfModule>
 MTML
-                    my $data = build_tmpl( $app, $tmpl );
-                    write2file( $htaccess, $data );
+                    require MT::Template;
+                    require MT::Builder;
+                    require MT::Template::Context;
+                    my $ctx = MT::Template::Context->new;
+                    my $build = MT::Builder->new;
+                    my $tokens = $build->compile( $ctx, $tmpl )
+                        or return $app->error( $app->translate(
+                            "Parse error: [_1]", $build->errstr ) );
+                    defined( my $data = $build->build( $ctx, $tokens ) )
+                        or return $app->error( $app->translate(
+                            "Build error: [_1]", $build->errstr ) );
+                    require MT::FileMgr;
+                    my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+                    $fmgr->put_data( $data, $htaccess );
                 }
             }
         }
@@ -38,7 +50,7 @@ sub _cfg_system_general {
     if ( $ENV{ SERVER_SOFTWARE } =~ /Microsoft-IIS/ ) {
         return 1;
     }
-    my $static_file_path = chomp_dir( $app->static_file_path );
+    my $static_file_path = __chomp_dir( $app->static_file_path );
     my $dir = File::Spec->catdir( $static_file_path, 'minify_2' );
     if (! -d $dir ) {
         return;
@@ -62,7 +74,13 @@ MTML
     $tmpl->insertAfter( $nodeset, $pointer_field );
     require File::Spec;
     my $htaccess = File::Spec->catfile( $static_file_path, '.htaccess' );
-    if ( my $cfg = read_from_file( $htaccess ) ) {
+    require MT::FileMgr;
+    my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+    unless ( $fmgr->exists( $htaccess ) ) {
+       return '';
+    }
+    my $cfg = $fmgr->get_data( $htaccess );
+    if ( $cfg ) {
         my $search = quotemeta( 'minify_2/min/f=' );
         if ( $cfg =~ /$search/ ) {
             $param->{ use_minifier } = 1;
@@ -71,15 +89,59 @@ MTML
     return 1;
 }
 
-# sub _hdlr_html_compressor {
-#     my ( $ctx, $args, $cond ) = @_;
-#     my $out = $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
-#     $out = MT->instance->translate_templatized( $out );
-#     require HTML::Packer;
-#     my $packer = HTML::Packer->init();
-#     $out = $packer->minify( \$out, $args );
-#     return $out;
-# }
+sub _hdlr_html_compressor {
+    my ( $ctx, $args, $cond ) = @_;
+    my $out = $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
+    $out = MT->instance->translate_templatized( $out );
+    require HTML::Packer;
+    my $packer = HTML::Packer->init();
+    $out = $packer->minify( \$out, $args );
+    return $out;
+}
+
+sub _cb_gzip {
+    my ( $cb, %args ) = @_;
+    if ( MT->config( 'content2gzip' ) ) {
+        my $content = $args{ content };
+        my $file = $args{ file };
+        my @extentions = split( /,/, MT->config( 'content2gzipextensions' ) );
+        my $extension = '';
+        if ( $file =~ /\.([^.]+)\z/ ) {
+            $extension = lc( $1 );
+        } else {
+            return
+        }
+        if ( grep( /^$extension$/, @extentions ) ) {
+            require IO::Compress::Gzip;
+            my $output;
+            my $data = $content = MT::I18N::utf8_off( $$content );
+            IO::Compress::Gzip::gzip( \$data, \$output, Minimal => 1 );
+            require MT::FileMgr;
+            my $fmgr = MT::FileMgr->new( 'Local' );
+            $fmgr->put_data( $output, $file . '.gz', 'upload' );
+        }
+    }
+}
+
+sub _cb_delete_archive {
+    my ( $cb, $file, $at, $entry ) = @_;
+    if ( MT->config( 'content2gzip' ) ) {
+        my @extentions = split( /,/, MT->config( 'content2gzipextensions' ) );
+        my $extension = '';
+        if ( $file =~ /\.([^.]+)\z/ ) {
+            $extension = lc( $1 );
+        } else {
+            return
+        }
+        if ( grep( /^$extension$/, @extentions ) ) {
+            require MT::FileMgr;
+            my $fmgr = MT::FileMgr->new( 'Local' );
+            if ( $fmgr->exists( $file . '.gz' ) ) {
+                $fmgr->delete( $file . '.gz' );
+            }
+        }
+    }
+}
 
 sub _hdlr_css_compressor {
     my ( $ctx, $args, $cond ) = @_;
@@ -106,7 +168,7 @@ sub _hdlr_pass_tokens {
 
 sub _fltr_abs_addslash {
     my ( $text, $arg, $ctx ) = @_;
-    $text = add_slash( $text );
+    $text = __add_slash( $text );
     $text =~ s!^https{0,1}://.*?(/)!$1!;
     return $text;
 }
@@ -117,70 +179,24 @@ sub _fltr_cut_firstslash {
     return $text;
 }
 
-sub add_slash {
+sub __add_slash {
     my $path = shift;
     return $path if $path eq '/';
     if ( $path =~ m!^https?://! ) {
         $path =~ s{/*\z}{/};
         return $path;
     }
-    $path = chomp_dir( $path );
+    $path = __chomp_dir( $path );
     $path .= '/';
     return $path;
 }
 
-sub build_tmpl {
-    my ( $app, $tmpl, $args, $params ) = @_;
-    require MT::Template;
-    require MT::Builder;
-    require MT::Template::Context;
-    my $ctx = MT::Template::Context->new;
-    my $build = MT::Builder->new;
-    my $tokens = $build->compile( $ctx, $tmpl )
-        or return $app->error( $app->translate(
-            "Parse error: [_1]", $build->errstr ) );
-    defined( my $html = $build->build( $ctx, $tokens ) )
-        or return $app->error( $app->translate(
-            "Build error: [_1]", $build->errstr ) );
-    return $html;
-}
-
-sub chomp_dir {
+sub __chomp_dir {
     my $dir = shift;
     require File::Spec;
     my @path = File::Spec->splitdir( $dir );
     $dir = File::Spec->catdir( @path );
     return $dir;
-}
-
-sub read_from_file {
-    my ( $path ) = @_;
-    require MT::FileMgr;
-    my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
-    unless ( $fmgr->exists( $path ) ) {
-       return '';
-    }
-    my $data = $fmgr->get_data( $path );
-    return $data;
-}
-
-sub write2file {
-    my ( $path, $data ) = @_;
-    require MT::FileMgr;
-    my $fmgr = MT::FileMgr->new( 'Local' ) or return 0;
-    require File::Basename;
-    my $dir = File::Basename::dirname( $path );
-    $dir =~ s!/$!! unless $dir eq '/';
-    unless ( $fmgr->exists( $dir ) ) {
-        $fmgr->mkpath( $dir ) or return 0;
-    }
-    $fmgr->put_data( $data, "$path.new" );
-    if ( $fmgr->rename( "$path.new", $path ) ) {
-        if ( $fmgr->exists( $path ) ) {
-            return 1;
-        }
-    }
-    return 0;
 }
 
 1;
