@@ -71,6 +71,16 @@ MTML
     return 1;
 }
 
+# sub _hdlr_html_compressor {
+#     my ( $ctx, $args, $cond ) = @_;
+#     my $out = $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
+#     $out = MT->instance->translate_templatized( $out );
+#     require HTML::Packer;
+#     my $packer = HTML::Packer->init();
+#     $out = $packer->minify( \$out, $args );
+#     return $out;
+# }
+
 sub _hdlr_css_compressor {
     my ( $ctx, $args, $cond ) = @_;
     my $out = _hdlr_pass_tokens( @_ );

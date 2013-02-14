@@ -1,11 +1,11 @@
 name: Minifier
 id:   Minifier
 key:  minifier
-version: 0.1
+version: 0.2
 author_link: http://alfasado.net/
 author_name: Alfasado Inc.
 l10n_class: Minifier::L10N
-description: <__trans phrase="Minifying JavaScript and CSS code.">
+description: <__trans phrase="Minifying HTML, JavaScript and CSS code.">
 callbacks:
     MT::App::CMS::pre_run: $minifier::Minifier::Plugin::_pre_run
     MT::App::CMS::template_param.cfg_system_general: $minifier::Minifier::Plugin::_cfg_system_general
@@ -13,6 +13,15 @@ tags:
     block:
         CSSCompressor: $minifier::Minifier::Plugin::_hdlr_css_compressor
         JSCompressor: $minifier::Minifier::Plugin::_hdlr_js_compressor
+        HTMLCompressor: >
+            sub {
+                my ( $ctx, $args, $cond ) = @_;
+                my $out = $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
+                $out = MT->instance->translate_templatized( $out );
+                require HTML::Packer;
+                my $packer = HTML::Packer->init();
+                $out = $packer->minify( \$out, $args );
+            };
     modifier:
         abs_addslash: $minifier::Minifier::Plugin::_fltr_abs_addslash
         cut_firstslash: $minifier::Minifier::Plugin::_fltr_cut_firstslash
