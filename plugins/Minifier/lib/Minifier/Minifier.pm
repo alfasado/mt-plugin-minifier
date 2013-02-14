@@ -89,16 +89,6 @@ MTML
     return 1;
 }
 
-sub _hdlr_html_compressor {
-    my ( $ctx, $args, $cond ) = @_;
-    my $out = $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
-    $out = MT->instance->translate_templatized( $out );
-    require HTML::Packer;
-    my $packer = HTML::Packer->init();
-    $out = $packer->minify( \$out, $args );
-    return $out;
-}
-
 sub _cb_gzip {
     my ( $cb, %args ) = @_;
     if ( MT->config( 'content2gzip' ) ) {
@@ -141,6 +131,16 @@ sub _cb_delete_archive {
             }
         }
     }
+}
+
+sub _hdlr_html_compressor {
+    my ( $ctx, $args, $cond ) = @_;
+    my $out = _hdlr_pass_tokens( @_ );
+    $out = MT->instance->translate_templatized( $out );
+    require HTML::Packer;
+    my $packer = HTML::Packer->init();
+    $out = $packer->minify( \$out, $args );
+    return $out;
 }
 
 sub _hdlr_css_compressor {
