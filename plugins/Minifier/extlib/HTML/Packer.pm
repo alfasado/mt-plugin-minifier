@@ -298,6 +298,7 @@ sub init {
 
 sub minify {
     my ( $self, $input, $opts );
+
     unless (
         ref( $_[0] ) and
         ref( $_[0] ) eq __PACKAGE__
@@ -316,7 +317,6 @@ sub minify {
         carp( 'First argument must be a scalarref!' );
         return undef;
     }
-MT->log(2);
 
     my $html;
     my $cont    = 'void';
