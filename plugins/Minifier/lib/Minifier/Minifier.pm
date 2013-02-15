@@ -125,12 +125,34 @@ sub _cb_delete_archive {
         }
         if ( grep( /^$extension$/, @extentions ) ) {
             require MT::FileMgr;
-            my $fmgr = MT::FileMgr->new( 'Local' );
+            my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
             if ( $fmgr->exists( $file . '.gz' ) ) {
                 $fmgr->delete( $file . '.gz' );
             }
         }
     }
+    return 1;
+}
+
+sub _cb_remove_exif {
+    my ( $cb, %args ) = @_;
+    if ( MT->config( 'RemoveExifAtUploadImage' ) ) {
+        my $asset = $args{ asset };
+        my $photo = $asset->file_path;
+        require Image::Magick;
+        my $image = Image::Magick->new();
+        $image->Read( $photo );
+        $image->Strip();
+        $image->Write( "${photo}.new" );
+        require MT::FileMgr;
+        my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+        if ( $fmgr->file_size( "${photo}.new" ) < $fmgr->file_size( $photo ) ) {
+            $fmgr->rename( "${photo}.new", $photo );
+        } else {
+            $fmgr->delete( "${photo}.new" );
+        }
+    }
+    return 1;
 }
 
 sub _hdlr_html_compressor {

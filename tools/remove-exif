@@ -1,0 +1,62 @@
+#!/usr/bin/perl
+package MT::Tool::RemoveExif;
+use strict;
+use warnings;
+use File::Spec;
+use FindBin;
+
+use lib map File::Spec->catdir( $FindBin::Bin, File::Spec->updir, $_ ), qw/lib extlib/;
+use base qw( MT::Tool );
+
+sub usage { '--debug 1' }
+
+sub help {
+    return q {
+        Remove Exif data.
+        --debug 1
+    };
+}
+
+my ( $debug );
+
+sub options {
+    return (
+        'debug=s'   => \$debug,
+    );
+}
+
+sub main {
+    my $class = shift;
+    my ( $verbose ) = $class->SUPER::main( @_ );
+    my $iter = MT->model( 'image' )->load_iter();
+    require Image::Magick;
+    require MT::FileMgr;
+    my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+    while ( my $asset = $iter->() ) {
+        my $photo = $asset->file_path;
+        my $image = Image::Magick->new();
+        $image->Read( $photo );
+        $image->Strip();
+        $image->Write( "${photo}.new" );
+        if ( $fmgr->file_size( "${photo}.new" ) < $fmgr->file_size( $photo ) ) {
+            if ( $debug ) {
+                print $asset->file_name;
+                print " original : " . $fmgr->file_size( $photo );
+                print " bytes, new : " . $fmgr->file_size( "${photo}.new" );
+                print " bytes\n";
+            } else {
+                $fmgr->rename( "${photo}.new", $photo );
+            }
+        } else {
+            $fmgr->delete( "${photo}.new" );
+        }
+        if ( $debug ) {
+            if ( $fmgr->exists( "${photo}.new" ) ) {
+                $fmgr->delete( "${photo}.new" );
+            }
+        }
+    }
+    1;
+}
+
+__PACKAGE__->main() unless caller;

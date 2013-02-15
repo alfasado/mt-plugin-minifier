@@ -1,11 +1,11 @@
 name: Minifier
 id:   Minifier
 key:  minifier
-version: 0.4
+version: 0.5
 author_link: http://alfasado.net/
 author_name: Alfasado Inc.
 l10n_class: Minifier::L10N
-description: <__trans phrase="Minifying HTML, JavaScript and CSS code.">
+description: <__trans phrase="Minifying HTML, JavaScript, CSS code and remove Exif data from images.">
 config_settings:
     content2gzip:
         default: 0
@@ -13,11 +13,14 @@ config_settings:
         default: 0
     content2gzipextensions:
         default: html,js,css
+    RemoveExifAtUploadImage:
+        default: 1
 callbacks:
     MT::App::CMS::pre_run: $minifier::Minifier::Minifier::_pre_run
     MT::App::CMS::template_param.cfg_system_general: $minifier::Minifier::Minifier::_cfg_system_general
     build_file: $minifier::Minifier::Minifier::_cb_gzip
     post_delete_archive_file: $minifier::Minifier::Minifier::_cb_delete_archive
+    MT::App::CMS::cms_upload_image: $minifier::Minifier::Minifier::_cb_remove_exif
 tags:
     block:
         CSSCompressor: $minifier::Minifier::Minifier::_hdlr_css_compressor

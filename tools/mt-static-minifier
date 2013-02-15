@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+package MT::Tool::MTStaticMinifier;
+use strict;
+use warnings;
+use FindBin;
+use lib map File::Spec->catdir($FindBin::Bin, File::Spec->updir, $_), qw/lib extlib/;
+use lib qw( plugins/Minifier/extlib );
+use base qw( MT::Tool );
+use File::Find;
+use CSS::Minifier;
+use JavaScript::Minifier;
+use MT::FileMgr;
+
+sub usage { '[--backup none]' }
+
+sub help {
+    return q {
+        Minify CSS and JavaScript files in MTStaticDirectory.
+
+        --backup <File extention of backup files (or 'none').>
+                      Optional: default => .original
+    };
+}
+
+my $backup;
+
+sub options {
+    return (
+        'backup=s' => \$backup,
+    );
+}
+
+sub main {
+    my $class = shift;
+    my ( $verbose ) = $class->SUPER::main( @_ );
+    if (! defined $backup ) {
+        $backup = 'original';
+    } elsif ( $backup ne 'none' ) {
+        $backup =~ s/^\.+//;
+    }
+    my $mt = MT->new or die MT->errstr;
+    my $directory = MT->config( 'StaticFilePath' );
+    my @wantedFiles;
+    File::Find::find ( sub { push ( @wantedFiles, $File::Find::name ) unless (/^\./) || ! -f; }, $directory );
+    my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+    for my $file ( @wantedFiles ) {
+        unless ( $file =~ /\.((?:cs|j)s)$/i ) {
+            next;
+        }
+        my $ext  = uc $1;
+        my $data = $fmgr->get_data( $file );
+        my $minify;
+        if ( $ext eq 'CSS' ) {
+            $minify = CSS::Minifier::minify( input => $data );
+        } else {
+        # } elsif ( $ext eq 'JS' ) {
+            $minify = JavaScript::Minifier::minify( input => $data );
+        }
+        if ( (! $minify ) || ( $minify eq $data ) ) {
+            next;
+        }
+        if ( $backup ne 'none' ) {
+            $fmgr->put_data( $data, "$file.$backup" );
+        }
+        $fmgr->put_data( $minify, $file );
+        print "Minified : $file\n";
+    }
+    1;
+}
+
+__PACKAGE__->main() unless caller;
