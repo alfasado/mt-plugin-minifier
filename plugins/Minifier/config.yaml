@@ -1,7 +1,7 @@
 name: Minifier
 id:   Minifier
 key:  minifier
-version: 0.5
+version: 0.6
 author_link: http://alfasado.net/
 author_name: Alfasado Inc.
 l10n_class: Minifier::L10N
@@ -20,7 +20,9 @@ callbacks:
     MT::App::CMS::template_param.cfg_system_general: $minifier::Minifier::Minifier::_cfg_system_general
     build_file: $minifier::Minifier::Minifier::_cb_gzip
     post_delete_archive_file: $minifier::Minifier::Minifier::_cb_delete_archive
-    MT::App::CMS::cms_upload_image: $minifier::Minifier::Minifier::_cb_remove_exif
+    MT::App::CMS::cms_upload_image:
+        - handler: $minifier::Minifier::Minifier::_cb_remove_exif
+          priority: 10
 tags:
     block:
         CSSCompressor: $minifier::Minifier::Minifier::_hdlr_css_compressor
