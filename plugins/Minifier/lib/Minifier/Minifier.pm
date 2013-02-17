@@ -171,6 +171,7 @@ sub _hdlr_css_compressor {
     my $out = _hdlr_pass_tokens( @_ );
     $out = MT->instance->translate_templatized( $out );
     my $archive_file = $ctx->stash( 'current_archive_file' );
+    $out =~ s/\r\n?/\n/g;
     if ( $args->{ flatten_css_imports } && $archive_file ) {
         # TODO::PHP
         require File::Spec;
@@ -180,15 +181,14 @@ sub _hdlr_css_compressor {
         my $dir = File::Basename::dirname( $archive_file );
         my $app = MT->instance;
         my @imports;
-        $out  =~ s/\r\n?/\n/g;
         my @lines = split( /\n/, $out );
         for my $line ( @lines ) {
             if ( $line =~ /^\@import/ ) {
                 push( @imports, $line );
             }
         }
+        my ( $document_root, $base_root, $base);
         if ( scalar ( @imports ) ) {
-            my ( $document_root, $base_root, $base);
             my $blog = $ctx->stash( 'blog' );
             if ( (ref ( $app ) =~ /^MT::App::/ ) && !$blog )  {
                 $document_root = $app->document_root;
@@ -236,6 +236,9 @@ sub _hdlr_css_compressor {
     }
     require CSS::Minifier;
     $out = CSS::Minifier::minify( input => $out );
+    if ( $args->{ flatten_css_imports } ) {
+        $out =~ s/\n/ /g;
+    }
     return $out;
 }
 
