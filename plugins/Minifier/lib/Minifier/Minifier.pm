@@ -170,9 +170,9 @@ sub _hdlr_css_compressor {
     my ( $ctx, $args, $cond ) = @_;
     my $out = _hdlr_pass_tokens( @_ );
     $out = MT->instance->translate_templatized( $out );
-    if ( $args->{ flatten_css_imports } ) {
+    my $archive_file = $ctx->stash( 'current_archive_file' );
+    if ( $args->{ flatten_css_imports } && $archive_file ) {
         # TODO::PHP
-        my $archive_file = $ctx->stash( 'current_archive_file' );
         require File::Spec;
         require File::Basename;
         require MT::FileMgr;
