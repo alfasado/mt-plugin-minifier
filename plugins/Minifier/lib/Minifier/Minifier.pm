@@ -51,6 +51,7 @@ sub _cfg_system_general {
         return 1;
     }
     my $static_file_path = __chomp_dir( $app->static_file_path );
+    require File::Spec;
     my $dir = File::Spec->catdir( $static_file_path, 'minify_2' );
     if (! -d $dir ) {
         return;
@@ -169,6 +170,56 @@ sub _hdlr_css_compressor {
     my ( $ctx, $args, $cond ) = @_;
     my $out = _hdlr_pass_tokens( @_ );
     $out = MT->instance->translate_templatized( $out );
+    if ( $args->{ flatten_css_imports } ) {
+        # TODO::PHP
+        my $archive_file = $ctx->stash( 'current_archive_file' );
+        require File::Spec;
+        require File::Basename;
+        require MT::FileMgr;
+        my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+        my $dir = File::Basename::dirname( $archive_file );
+        my $app = MT->instance;
+        my ( $document_root, $base_root );
+        if (ref ( $app ) =~ /^MT::App::/ ) {
+            $document_root = $app->document_root;
+            my $base = $app->base;
+            if ( $base =~ /^https/ ) {
+                my $blog = $ctx->stash( 'blog' );
+                if ( $blog && $blog->site_path !~ /^https/ ) {
+                    $base =~ s/^https/http/;
+                }
+            }
+            $base_root = quotemeta( $base );
+        }
+        my @imports;
+        $out  =~ s/\r\n?/\n/g;
+        my @lines = split( /\n/, $out );
+        for my $line ( @lines ) {
+            if ( $line =~ /^\@import/ ) {
+                push( @imports, $line );
+            }
+        }
+        for my $import ( @imports ) {
+            if ( $import =~ /['"](.*?)['"]/ ) {
+                my $in;
+                if ( ( $1 !~ /^http/ ) && ( $1 !~ m!^/! ) ) {
+                    $in = File::Spec->rel2abs( $1, $dir );
+                } elsif ( ( $1 !~ m!^/! ) && $document_root ) {
+                    $in = $document_root . $1;
+                } elsif ( ( $1 !~ /^http/ ) && $base_root ) {
+                    if ( $1 =~ /^$base_root/ ) {
+                        $in = $1;
+                        $in =~ s/^$base_root/$document_root/;
+                    }
+                }
+                if ( $in && $fmgr->exists( $in ) ) {
+                    my $css = $fmgr->get_data( $in );
+                    $import = quotemeta( $import );
+                    $out =~ s/$import/$css/;
+                }
+            }
+        }
+    }
     require CSS::Minifier;
     $out = CSS::Minifier::minify( input => $out );
     return $out;
@@ -186,6 +237,14 @@ sub _hdlr_js_compressor {
 sub _hdlr_pass_tokens {
     my ( $ctx, $args, $cond ) = @_;
     $ctx->stash( 'builder' )->build( $ctx, $ctx->stash( 'tokens' ), $cond );
+}
+
+sub _build_file_filter {
+    my ( $cb, %args ) = @_;
+    my $file  = $args{ File };
+    my $ctx = $args{ Context };
+    $ctx->stash( 'current_archive_file', $file );
+    return 1;
 }
 
 sub _fltr_abs_addslash {
