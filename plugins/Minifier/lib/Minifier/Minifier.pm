@@ -179,18 +179,6 @@ sub _hdlr_css_compressor {
         my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
         my $dir = File::Basename::dirname( $archive_file );
         my $app = MT->instance;
-        my ( $document_root, $base_root );
-        if (ref ( $app ) =~ /^MT::App::/ ) {
-            $document_root = $app->document_root;
-            my $base = $app->base;
-            if ( $base =~ /^https/ ) {
-                my $blog = $ctx->stash( 'blog' );
-                if ( $blog && $blog->site_path !~ /^https/ ) {
-                    $base =~ s/^https/http/;
-                }
-            }
-            $base_root = quotemeta( $base );
-        }
         my @imports;
         $out  =~ s/\r\n?/\n/g;
         my @lines = split( /\n/, $out );
@@ -198,6 +186,29 @@ sub _hdlr_css_compressor {
             if ( $line =~ /^\@import/ ) {
                 push( @imports, $line );
             }
+        }
+        if ( scalar ( @imports ) ) {
+            my ( $document_root, $base_root, $base);
+            my $blog = $ctx->stash( 'blog' );
+            if ( (ref ( $app ) =~ /^MT::App::/ ) && !$blog )  {
+                $document_root = $app->document_root;
+                $base = $app->base;
+            } elsif ( $blog ) {
+                $base = $blog->site_url;
+                if ( $base =~ m!(^https{0,1}://.*?)(/.*)/$! ) {
+                    $base = 1;
+                    $document_root = $blog->site_path;
+                    if ( $^O eq 'MSWin32' ) {
+                        $document_root =~ s!\\!/!g;
+                    }
+                    my $end = quotemeta( $2 );
+                    $document_root =~ s/$end$//;
+                    if ( $^O eq 'MSWin32' ) {
+                        $document_root =~ s!/!\\!g;
+                    }
+                }
+            }
+            $base_root = quotemeta( $base );
         }
         for my $import ( @imports ) {
             if ( $import =~ /['"](.*?)['"]/ ) {
@@ -211,6 +222,9 @@ sub _hdlr_css_compressor {
                         $in = $1;
                         $in =~ s/^$base_root/$document_root/;
                     }
+                }
+                if ( $^O eq 'MSWin32' ) {
+                    $in =~ s!/!\\!g;
                 }
                 if ( $in && $fmgr->exists( $in ) ) {
                     my $css = $fmgr->get_data( $in );
