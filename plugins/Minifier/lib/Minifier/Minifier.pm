@@ -173,7 +173,6 @@ sub _hdlr_css_compressor {
     my $archive_file = $ctx->stash( 'current_archive_file' );
     $out =~ s/\r\n?/\n/g;
     if ( $args->{ flatten_css_imports } && $archive_file ) {
-        # TODO::PHP
         require File::Spec;
         require File::Basename;
         require MT::FileMgr;
@@ -196,7 +195,7 @@ sub _hdlr_css_compressor {
             } elsif ( $blog ) {
                 $base = $blog->site_url;
                 if ( $base =~ m!(^https{0,1}://.*?)(/.*)/$! ) {
-                    $base = 1;
+                    $base = $1;
                     $document_root = $blog->site_path;
                     if ( $^O eq 'MSWin32' ) {
                         $document_root =~ s!\\!/!g;
@@ -212,14 +211,15 @@ sub _hdlr_css_compressor {
         }
         for my $import ( @imports ) {
             if ( $import =~ /['"](.*?)['"]/ ) {
+                my $match = $1;
                 my $in;
-                if ( ( $1 !~ /^http/ ) && ( $1 !~ m!^/! ) ) {
+                if ( ( $match !~ /^http/ ) && ( $match !~ m!^/! ) ) {
                     $in = File::Spec->rel2abs( $1, $dir );
-                } elsif ( ( $1 !~ m!^/! ) && $document_root ) {
-                    $in = $document_root . $1;
-                } elsif ( ( $1 !~ /^http/ ) && $base_root ) {
-                    if ( $1 =~ /^$base_root/ ) {
-                        $in = $1;
+                } elsif ( $match =~ m/^\// ) {
+                    $in = $document_root . $match;
+                } elsif ( $match =~ /^http/ ) {
+                    if ( $match =~ /^$base_root/ ) {
+                        $in = $match;
                         $in =~ s/^$base_root/$document_root/;
                     }
                 }
