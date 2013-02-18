@@ -3,7 +3,7 @@ use strict;
 
 sub _pre_run {
     my $app = MT->instance;
-    if ( $app->param( '__mode' ) eq 'save_cfg_system_general' ) {
+    if ( $app->param( '__mode' ) && ( $app->param( '__mode' ) eq 'save_cfg_system_general' ) ) {
         if ( $ENV{ SERVER_SOFTWARE } =~ /Microsoft-IIS/ ) {
             return 1;
         }
@@ -82,8 +82,7 @@ MTML
     }
     my $cfg = $fmgr->get_data( $htaccess );
     if ( $cfg ) {
-        my $search = quotemeta( 'minify_2/min/f=' );
-        if ( $cfg =~ /$search/ ) {
+        if ( $cfg =~ m{^\s*(?i:RewriteRule)\s+\S+\s+\S+/minify_2/min/\S}m ) {
             $param->{ use_minifier } = 1;
         }
     }
