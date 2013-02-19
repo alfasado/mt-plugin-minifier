@@ -212,23 +212,27 @@ sub _hdlr_css_compressor {
             if ( $import =~ /['"](.*?)['"]/ ) {
                 my $match = $1;
                 my $in;
-                if ( ( $match !~ /^http/ ) && ( $match !~ m!^/! ) ) {
-                    $in = File::Spec->rel2abs( $1, $dir );
-                } elsif ( $match =~ m/^\// ) {
-                    $in = $document_root . $match;
-                } elsif ( $match =~ /^http/ ) {
-                    if ( $match =~ /^$base_root/ ) {
-                        $in = $match;
-                        $in =~ s/^$base_root/$document_root/;
+                if (( ! $app->config( 'AllowIncludeParentDir' ))
+                        && $match =~ m/\.\./ ) {
+                } else {
+                    if ( ( $match !~ /^http/ ) && ( $match !~ m!^/! ) ) {
+                        $in = File::Spec->rel2abs( $1, $dir );
+                    } elsif ( $match =~ m/^\// ) {
+                        $in = $document_root . $match;
+                    } elsif ( $match =~ /^http/ ) {
+                        if ( $match =~ /^$base_root/ ) {
+                            $in = $match;
+                            $in =~ s/^$base_root/$document_root/;
+                        }
                     }
-                }
-                if ( $^O eq 'MSWin32' ) {
-                    $in =~ s!/!\\!g;
-                }
-                if ( $in && $fmgr->exists( $in ) ) {
-                    my $css = $fmgr->get_data( $in );
-                    $import = quotemeta( $import );
-                    $out =~ s/$import/$css/;
+                    if ( $^O eq 'MSWin32' ) {
+                        $in =~ s!/!\\!g;
+                    }
+                    if ( $in && $fmgr->exists( $in ) ) {
+                        my $css = $fmgr->get_data( $in );
+                        $import = quotemeta( $import );
+                        $out =~ s/$import/$css/;
+                    }
                 }
             }
         }
