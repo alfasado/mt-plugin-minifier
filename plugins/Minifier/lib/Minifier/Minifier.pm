@@ -146,7 +146,7 @@ sub _cb_remove_exif {
         $image->Write( "${photo}.new" );
         require MT::FileMgr;
         my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
-        if ( $fmgr->file_size( "${photo}.new" ) < $fmgr->file_size( $photo ) ) {
+        if ( _file_size( "${photo}.new" ) < _file_size( $photo ) ) {
             $fmgr->rename( "${photo}.new", $photo );
         } else {
             $fmgr->delete( "${photo}.new" );
@@ -300,4 +300,19 @@ sub __chomp_dir {
     return $dir;
 }
 
+# Copied local and file_size function from MT::FileMgr::Local (MT5, not in MT4)
+sub _local {
+    ## TBD: does it needed to escape backslashs?
+    return $^O eq 'MSWin32' ? Encode::encode( 'Shift_JIS', $_[0] ) : $_[0];
+}
+
+sub _file_size {
+    my $fmgr = shift;
+    my ($file) = @_;
+    $file = _local($file);
+    if ( -e $file ) {
+        return ( stat($file) )[7];    # filesize
+    }
+    return undef;
+}
 1;
